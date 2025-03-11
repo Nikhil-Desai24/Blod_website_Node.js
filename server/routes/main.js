@@ -7,44 +7,43 @@
 const express = require('express');
 const router = express.Router();
 const Post = require('../models/Post.js')
+const { isActiveRoute } = require('../helpers/routeHelpers');
+
 
 // Routes
 // get method
 // this is home page-> index
 router.get('', async (req, res) => {
-    try {
+  try {
       const locals = {
-        title: "NodeJs Blog",
-        description: "Simple Blog created with NodeJs, Express & MongoDb."
-      }
-  
+          title: "NodeJs Blog",
+          description: "Simple Blog created with NodeJs, Express & MongoDb.",
+          currentRoute: '/',
+          isActiveRoute  // Pass function to EJS
+      };
+
       let perPage = 5;
       let page = req.query.page || 1;
-  
-      const data = await Post.aggregate([ { $sort: { createdAt: -1 } } ])
-      .skip(perPage * page - perPage)
-      .limit(perPage)
-      .exec();
-  
-      // Count is deprecated - please use countDocuments
-      // const count = await Post.count();
+
+      const data = await Post.aggregate([{ $sort: { createdAt: -1 } }])
+          .skip(perPage * page - perPage)
+          .limit(perPage)
+          .exec();
+
       const count = await Post.countDocuments({});
       const nextPage = parseInt(page) + 1;
       const hasNextPage = nextPage <= Math.ceil(count / perPage);
-  
-      res.render('index', { 
-        locals,
-        data,
-        current: page,
-        nextPage: hasNextPage ? nextPage : null,
-        currentRoute: '/'
+
+      res.render('index', {
+          locals,
+          data,
+          current: page,
+          nextPage: hasNextPage ? nextPage : null
       });
-  
-    } catch (error) {
+  } catch (error) {
       console.log(error);
-    }
-  
-  });
+  }
+});
 
 // router.get('',async(req,res)=>{
 //     const locals = {
@@ -64,20 +63,27 @@ router.get('', async (req, res) => {
 // // insertPostData();
 
 router.get('/post/:id', async (req, res) => {
-  
   try {
     let slug = req.params.id;
-    
-    const data = await Post.findById({ _id: slug });
+    const data = await Post.findById(slug);
+
+    if (!data) {
+      return res.status(404).render('404', { message: 'Post not found' });
+    }
+
+    const isActiveRoute = (route, currentRoute) => (route === currentRoute ? 'active' : '');
+
     const locals = {
       title: data.title,
       description: 'This is a blog website built using Node.js',
-      currentRoute:`/post/${slug}`
+      currentRoute: `/post/${slug}`,
+      isActiveRoute, // Pass function to EJS
     };
+
     res.render('post', { data, locals });
   } catch (err) {
-    console.error('error:', err);
-    // res.render('layout/index', { locals });
+    console.error('Error fetching post:', err);
+    res.status(500).render('500', { message: 'Internal Server Error' });
   }
 });
 
@@ -112,15 +118,14 @@ router.post('/search',async(req,res)=>{
 
 router.get('/about', (req, res) => {
   res.render('about', {
-    currentRoute: '/about'
+    // currentRoute: '/about'
   });
 });
 //  contact route
 router.get('/contact',(req,res)=>{
     res.render('contact',{
-      currentRoute:'/contact'
+      // currentRoute:'/contact'
     });
-   
 });
 
 module.exports = router;
